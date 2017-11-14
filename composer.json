@@ -9,6 +9,9 @@
             "email": "difel110185@gmail.com"
         }
     ],
-    "minimum-stability": "dev",
-    "require": {}
+    "require": {
+        "php": ">=7.0",
+        "laravel/laravel": "5.5.*",
+        "difel/http-responses": "^0.2.0"
+    }
 }
