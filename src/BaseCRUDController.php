@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace Difel\CRUDHelper;
 
 use App\Http\ServerErrorResponse;
 use App\Http\SuccessResponse;
