@@ -2,9 +2,10 @@
 
 namespace Difel\CRUDHelper;
 
-use App\Http\ServerErrorResponse;
-use App\Http\SuccessResponse;
-use App\Http\ValidationErrorResponse;
+use App\Http\Controllers\Controller;
+use Difel\HTTPResponses\ServerErrorResponse;
+use Difel\HTTPResponses\SuccessResponse;
+use Difel\HTTPResponses\ValidationErrorResponse;
 use DateTime;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
