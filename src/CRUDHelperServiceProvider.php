@@ -1,6 +1,6 @@
 <?php
 
-namespace Difel\HTTPResponses;
+namespace Difel\CRUDHelper;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +13,7 @@ class CRUDHelperServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+
     }
 
     /**
