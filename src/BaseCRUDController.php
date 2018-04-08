@@ -10,15 +10,9 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Input;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Foundation\Bus\DispatchesJobs;
-use Illuminate\Routing\Controller;
-use Illuminate\Foundation\Validation\ValidatesRequests;
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class BaseCRUDController extends Controller
 {
-  use AuthorizesRequests, DispatchesJobs, ValidatesRequests;
-
   protected $model_name;
   protected $slug_singular;
   protected $slug_plural;
