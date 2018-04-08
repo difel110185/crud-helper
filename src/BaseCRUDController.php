@@ -224,4 +224,67 @@ class BaseCRUDController extends Controller
 
     return $results[0];
   }
+
+    public function getModelName() {
+        return $this->model_name;
+    }
+
+    public function getSlugSingular() {
+        return $this->slug_singular;
+    }
+
+    public function getSlugPlural() {
+        return $this->slug_plural;
+    }
+
+    public function getModelClass() {
+        return $this->model_class;
+    }
+
+    public function getValidationRules() {
+        return $this->validation_rules;
+    }
+
+    public function getUpdateValidationRules() {
+        return $this->update_validation_rules;
+    }
+
+    public function getCreationValidationRules() {
+        return $this->creation_validation_rules;
+    }
+
+    public function getViewClassToReadFrom() {
+        return $this->view_class_to_read_from;
+    }
+
+    public function getPageSize(): int {
+        return $this->page_size;
+    }
+
+    public function getOrderBy(): array {
+        return $this->order_by;
+    }
+
+    public function getFields() {
+        return $this->fields;
+    }
+
+    public function getFilters(): array {
+        return $this->filters;
+    }
+
+    public function getCreateMessageKey(): string {
+        return $this->create_message_key;
+    }
+
+    public function getUpdateMessageKey(): string {
+        return $this->update_message_key;
+    }
+
+    public function getDeleteMessageKey(): string {
+        return $this->delete_message_key;
+    }
+
+
+
 }
