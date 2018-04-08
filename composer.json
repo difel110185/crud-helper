@@ -11,7 +11,7 @@
     ],
     "require": {
         "php": ">=7.0",
-        "laravel/laravel": "5.5.*",
-        "difel/http-responses": "^0.2.0"
+        "laravel/laravel": "5.6.*",
+        "difel/http-responses": "^0.3.0"
     }
 }
