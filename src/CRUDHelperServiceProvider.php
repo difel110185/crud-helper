@@ -23,6 +23,5 @@ class CRUDHelperServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        $this->app->make('Difel\CRUDHelper\BaseCRUDController');
     }
 }
