@@ -1,290 +1,241 @@
 <?php
 
-namespace Difel\CRUDHelper;
+namespace Tests\Controller;
 
-use App\Http\Controllers\Controller;
-use Difel\HTTPResponses\ServerErrorResponse;
-use Difel\HTTPResponses\SuccessResponse;
-use Difel\HTTPResponses\ValidationErrorResponse;
-use DateTime;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Input;
-use Illuminate\Validation\ValidationException;
+use App\User;
+use Illuminate\Foundation\Testing\Concerns\MakesHttpRequests;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Laravel\Passport\Passport;
+use Tests\TestCase;
 
-class BaseCRUDController extends Controller
-{
-  protected $model_name;
-  protected $slug_singular;
-  protected $slug_plural;
-  protected $model_class;
-  protected $validation_rules;
-  protected $update_validation_rules;
-  protected $creation_validation_rules;
-  protected $view_class_to_read_from;
-  protected $page_size = 50;
-  protected $order_by = [];
-  protected $fields = null;
-  protected $filters = [];
-  protected $create_message_key = 'response.created_successfully';
-  protected $update_message_key = 'response.updated_successfully';
-  protected $delete_message_key = 'response.deleted_successfully';
+class BaseControllerTest extends TestCase {
+    use DatabaseTransactions, MakesHttpRequests;
 
-  protected function index()
-  {
-    try {
-      if ($this->shouldReturnRawData())
-        return new SuccessResponse('', [$this->slug_plural => $this->model_class::all()]);
+    protected $route_prefix;
+    protected $controller;
+    protected $controller_instance;
+    protected $expected_json_structure = ['name'];
+    protected $invalid_data = ['invalid_field' => 'Type name'];
+    protected $creation_data = ['name' => 'Type name'];
+    protected $update_data = ['name' => 'Type updated name'];
+    protected $filter_field = 'name';
+    protected $filter_operator = 'like';
+    protected $filter_creation_data = ['name' => 'testFilterModelInstance'];
+    protected $filter_value = '%testFilterModelInstance%';
+    protected $filter_expected_value = 'testFilterModelInstance';
+    protected $order_by_first_element_data = ['name' => 'aa'];
+    protected $order_by_last_element_data = ['name' => 'zz'];
+    protected $order_by_field = 'name';
+    protected $missing_field_in_fields_restriction = 'name';
 
-      $this->populateInstanceQueryAttributes();
+    protected function setUp() {
+        parent::setUp();
 
-      $items = $this->getData($this->view_class_to_read_from ?? $this->model_class);
+        Passport::actingAs(factory(User::class)->create());
 
-      return new SuccessResponse('', [$this->slug_plural => $items]);
-    }
-    catch (\Exception $e){
-      return new ServerErrorResponse($e);
-    }
-  }
-
-  protected function store(Request $request)
-  {
-    try {
-      $this->validate(request(), $this->creation_validation_rules ?? $this->validation_rules);
-
-      $model_instance = $this->model_class::create($request->all());
-
-      $data = [$this->slug_singular => $model_instance];
-
-      return new SuccessResponse(__($this->create_message_key, ['model' => $this->model_name]), $data);
-    }
-    catch (ValidationException $e){
-      return new ValidationErrorResponse($e, __('exception.validation_error'));
-    }
-    catch (\Exception $e){
-      return new ServerErrorResponse($e);
-    }
-  }
-
-  protected function show(int $id)
-  {
-    try {
-      $model_instance = $this->findModelInstance($id);
-
-      return new SuccessResponse('', [$this->slug_singular => $model_instance]);
-    }
-    catch (ModelNotFoundException $e){
-      return new ServerErrorResponse($e, null, null, 404);
-    }
-    catch (\Exception $e){
-      return new ServerErrorResponse($e);
-    }
-  }
-
-  protected function update(Request $request, int $id)
-  {
-    try {
-      $model_instance = $this->findModelInstance($id);
-
-      $this->validate(request(), $this->update_validation_rules ?? $this->validation_rules);
-
-      $model_instance->fill($request->all());
-
-      $model_instance->save();
-
-      $data = [ $this->slug_singular => $model_instance];
-
-      return new SuccessResponse(__($this->update_message_key, ['model' => $this->model_name]), $data);
-    }
-    catch (ModelNotFoundException $e){
-      return new ServerErrorResponse($e, null, null, 404);
-    }
-    catch (ValidationException $e){
-      return new ValidationErrorResponse($e, __('exception.validation_error'));
-    }
-    catch (\Exception $e){
-      return new ServerErrorResponse($e);
-    }
-  }
-
-  protected function destroy(int $id)
-  {
-    try {
-      $model_instance = $this->findModelInstance($id);
-
-      $model_instance->delete();
-
-      return new SuccessResponse(__($this->delete_message_key, ['model' => $this->model_name]));
-    }
-    catch (ModelNotFoundException $e){
-      return new ServerErrorResponse($e, null, null, 404);
-    }
-    catch (\Exception $e){
-      return new ServerErrorResponse($e);
-    }
-  }
-
-  protected function process_filter_value($string) {
-    if (preg_match("/^int\((\d+)\)$/", $string, $result))
-      return (int) $result[1];
-
-    if (preg_match("/^date\((\d{8})\)$/", $string, $result))
-      if (DateTime::createFromFormat('Ymd', $result[1]))
-        return DateTime::createFromFormat('Ymd G:i:s', $result[1] . ' 00:00:00');
-
-    if (preg_match("/^datetime\((\d{8} \d{2}\:\d{2}\:\d{2})\)$/", $string, $result))
-      if (DateTime::createFromFormat('Ymd G:i:s', $result[1]))
-        return DateTime::createFromFormat('Ymd G:i:s', $result[1]);
-
-    return $string;
-  }
-
-  protected function shouldReturnRawData(): bool {
-    $parameters = Input::all();
-
-    return empty($parameters) ||
-                (
-                  !isset($parameters['filters']) &&
-                  !isset($parameters['order_by']) &&
-                  !isset($parameters['fields']) &&
-                  !isset($parameters['page_size'])
-                );
-  }
-
-  protected function populateInstanceQueryAttributes() {
-    $parameters = Input::all();
-
-    $this->getFilterParametersFromRequest($parameters);
-
-    $this->getOrderByParametersFromRequest($parameters);
-
-    $this->getFieldsParametersFromRequest($parameters);
-
-    $this->getPaginationParametersFromRequest($parameters);
-  }
-
-  protected function getData($model_class) {
-    $query = (new $model_class)->newQuery();
-
-    foreach ($this->filters as $f)
-      $query->where($f[0], $f[1], $this->process_filter_value($f[2]));
-
-    foreach ($this->order_by as $ob)
-      $query->orderBy($ob[0], $ob[1]);
-
-    return (is_null($this->fields)) ? $query->paginate($this->page_size) : $query->paginate($this->page_size, $this->fields);
-  }
-
-  protected function getFilterParametersFromRequest($parameters) {
-    if (isset($parameters['filters'])) {
-      $filters_param = $parameters['filters'];
-      $filters = explode(',', $filters_param);
-
-      $this->filters = array_map(function ($array_item) {
-        return explode('-', $array_item);
-      }, $filters);
-    }
-    return $parameters;
-  }
-
-  protected function getOrderByParametersFromRequest($parameters) {
-    if (isset($parameters['order_by'])) {
-      $order_by_param = $parameters['order_by'];
-      $order_by = explode(',', $order_by_param);
-
-      $this->order_by = array_map(function ($array_item) {
-        return explode('-', $array_item);
-      }, $order_by);
-    }
-    return $parameters;
-  }
-
-  protected function getFieldsParametersFromRequest($parameters) {
-    if (isset($parameters['fields'])) {
-      $fields_param = $parameters['fields'];
-      $this->fields = explode(',', $fields_param);
-    }
-    return $parameters;
-  }
-
-  protected function getPaginationParametersFromRequest($parameters) {
-    if (isset($parameters['page_size']))
-      $this->page_size = $parameters['page_size'];
-  }
-
-  protected function findModelInstance($id) {
-    $this->populateInstanceQueryAttributes();
-
-    $this->filters[] = ['id', '=', 'int(' . $id . ')'];
-
-    $results = $this->getData($this->model_class)->items();
-
-    if(empty($results))
-      throw new ModelNotFoundException(__('exception.model_not_found', ['model' => $this->model_name]));
-
-    return $results[0];
-  }
-
-    public function getModelName() {
-        return $this->model_name;
+        $this->controller_instance = resolve($this->controller);
+        $this->route_prefix = $this->controller_instance->getSlugPlural();
     }
 
-    public function getSlugSingular() {
-        return $this->slug_singular;
+    public function testList() {
+        factory($this->controller_instance->getModelClass(), 10)->create();
+
+        $response = $this->json('GET', route($this->route_prefix . '.index'));
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [$this->controller_instance->getSlugPlural()]
+            ]);
     }
 
-    public function getSlugPlural() {
-        return $this->slug_plural;
+    public function testCreate() {
+        $response = $this->json('POST', route($this->route_prefix . '.store'), $this->creation_data);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    $this->controller_instance->getSlugSingular() => $this->expected_json_structure
+                ]
+            ]);
+
+        $newId = $response->json()['data'][$this->controller_instance->getSlugSingular()]['id'];
+
+        $this->assertNotNull($this->controller_instance->getModelClass()::find($newId));
     }
 
-    public function getModelClass() {
-        return $this->model_class;
+    public function testCreateWithInvalidData() {
+        $response = $this->json('POST', route($this->route_prefix . '.store'), $this->invalid_data);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => __('exception.validation_error')]);
     }
 
-    public function getValidationRules() {
-        return $this->validation_rules;
+    public function testUpdate() {
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+
+        $response = $this->json('PUT', route($this->route_prefix . '.update', ['id' => $model_instance->id]), $this->update_data);
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    $this->controller_instance->getSlugSingular() => $this->expected_json_structure
+                ]
+            ])
+            ->assertJsonFragment($this->update_data);
     }
 
-    public function getUpdateValidationRules() {
-        return $this->update_validation_rules;
+    public function testUpdateWithInvalidData() {
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+
+        $response = $this->json('PUT', route($this->route_prefix . '.update', ['id' => $model_instance->id]), $this->invalid_data);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonFragment(['message' => __('exception.validation_error')]);
     }
 
-    public function getCreationValidationRules() {
-        return $this->creation_validation_rules;
+    public function testUpdateWithInvalidId() {
+        $response = $this->json('PUT', route($this->route_prefix . '.update', ['id' => -1]), $this->update_data);
+
+        $response->assertStatus(404);
     }
 
-    public function getViewClassToReadFrom() {
-        return $this->view_class_to_read_from;
+    public function testShow() {
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+
+        $response = $this->json('GET', route($this->route_prefix . '.show', ['id' => $model_instance->id]));
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [
+                    $this->controller_instance->getSlugSingular() => $this->expected_json_structure
+                ]
+            ])
+            ->assertJsonFragment(['id' => $model_instance->id]);
     }
 
-    public function getPageSize(): int {
-        return $this->page_size;
+    public function testShowWithInvalidId() {
+        $response = $this->json('GET', route($this->route_prefix . '.show', ['id' => -1]));
+
+        $response->assertStatus(404);
     }
 
-    public function getOrderBy(): array {
-        return $this->order_by;
+    public function testDelete() {
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+
+        $response = $this->json('DELETE', route($this->route_prefix . '.destroy', ['id' => $model_instance->id]));
+
+        $response->assertStatus(200);
+
+        $this->assertNull($this->controller_instance->getModelClass()::find($model_instance->id));
     }
 
-    public function getFields() {
-        return $this->fields;
+    public function testDeleteWithInvalidId() {
+        $response = $this->json('DELETE', route($this->route_prefix . '.destroy', ['id' => -1]));
+
+        $response->assertStatus(404);
     }
 
-    public function getFilters(): array {
-        return $this->filters;
+    public function testPaginate() {
+        factory($this->controller_instance->getModelClass(), 10)->create($this->creation_data);
+
+        $page_size = 3;
+
+        $response = $this->json('GET', route($this->route_prefix . '.index', [
+            'page_size' => $page_size,
+            'page' => 2,
+        ]));
+
+        $response->assertStatus(200);
+
+        $responseArray = json_decode($response->getContent());
+
+        $this->assertEquals(count($responseArray->data->{$this->controller_instance->getSlugPlural()}->data), $page_size);
     }
 
-    public function getCreateMessageKey(): string {
-        return $this->create_message_key;
+    public function testFilter() {
+        factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        factory($this->controller_instance->getModelClass())->create($this->filter_creation_data);
+
+        $response = $this->json('GET', route($this->route_prefix . '.index', [
+            'filters' => $this->filter_field . '-' . $this->filter_operator . '-' . $this->filter_value,
+        ]));
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [$this->controller_instance->getSlugPlural()]
+            ])
+            ->assertJsonFragment([$this->filter_field => $this->filter_expected_value]);
+
+        $responseArray = json_decode($response->getContent());
+
+        $this->assertEquals(count($responseArray->data->{$this->controller_instance->getSlugPlural()}->data), 1);
     }
 
-    public function getUpdateMessageKey(): string {
-        return $this->update_message_key;
+    public function testOrderBy() {
+        factory($this->controller_instance->getModelClass())->create($this->order_by_first_element_data);
+        factory($this->controller_instance->getModelClass())->create($this->order_by_last_element_data);
+
+        $response = $this->json('GET', route($this->route_prefix . '.index', [
+            'order_by' => $this->order_by_field . '-asc',
+            'page' => 1,
+            'page_size' => 1
+        ]));
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [$this->controller_instance->getSlugPlural()]
+            ])
+            ->assertJsonFragment($this->order_by_first_element_data)
+            ->assertJsonMissing($this->order_by_last_element_data);
     }
 
-    public function getDeleteMessageKey(): string {
-        return $this->delete_message_key;
+    public function testOrderByDesc() {
+        factory($this->controller_instance->getModelClass())->create($this->order_by_first_element_data);
+        factory($this->controller_instance->getModelClass())->create($this->order_by_last_element_data);
+
+        $response = $this->json('GET', route($this->route_prefix . '.index', [
+            'order_by' => $this->order_by_field . '-desc',
+            'page' => 1,
+            'page_size' => 1
+        ]));
+
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [$this->controller_instance->getSlugPlural()]
+            ])
+            ->assertJsonFragment($this->order_by_last_element_data)
+            ->assertJsonMissing($this->order_by_first_element_data);
     }
 
+    public function testFieldRestriction() {
+        $response = $this->json('GET', route($this->route_prefix . '.index', [
+            'fields' => 'id,created_at,updated_at',
+        ]));
 
-
+        $response
+            ->assertStatus(200)
+            ->assertJsonStructure([
+                'message',
+                'data' => [$this->controller_instance->getSlugPlural()]
+            ])
+            ->assertJsonMissing([
+                $this->missing_field_in_fields_restriction
+            ]);
+    }
 }
