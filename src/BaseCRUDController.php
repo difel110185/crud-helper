@@ -128,6 +128,9 @@ class BaseCRUDController extends Controller
     if (preg_match("/^int\((\d+)\)$/", $string, $result))
       return (int) $result[1];
 
+    if (preg_match("/^double\(([\d\.]+)\)$/", $string, $result))
+      return (double) $result[1];
+
     if (preg_match("/^date\((\d{8})\)$/", $string, $result))
       if (DateTime::createFromFormat('Ymd', $result[1]))
         return DateTime::createFromFormat('Ymd G:i:s', $result[1] . ' 00:00:00');
