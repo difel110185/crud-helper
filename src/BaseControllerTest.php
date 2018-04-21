@@ -18,6 +18,7 @@ class BaseControllerTest extends TestCase {
     protected $factory;
     protected $expected_json_structure = ['name'];
     protected $invalid_data = ['invalid_field' => 'Type name'];
+    protected $factory_creation_data;
     protected $creation_data;
     protected $update_data;
     protected $filter_field = 'name';
@@ -41,10 +42,12 @@ class BaseControllerTest extends TestCase {
 
         $this->creation_data = $this->factory->raw();
         $this->update_data = $this->factory->raw();
+
+        $this->factory_creation_data = $this->creation_data;
     }
 
     public function testList() {
-        factory($this->controller_instance->getModelClass(), 10)->create($this->creation_data);
+        factory($this->controller_instance->getModelClass(), 10)->create($this->factory_creation_data);
 
         $response = $this->json('GET', route($this->route_prefix . '.index', $this->route_parameters));
 
@@ -82,7 +85,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testUpdate() {
-        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->factory_creation_data);
 
         $response = $this->json('PUT', route($this->route_prefix . '.update', array_merge($this->route_parameters, ['id' => $model_instance->id])), $this->update_data);
 
@@ -98,7 +101,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testUpdateWithInvalidData() {
-        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->factory_creation_data);
 
         $response = $this->json('PUT', route($this->route_prefix . '.update', array_merge($this->route_parameters, ['id' => $model_instance->id])), $this->invalid_data);
 
@@ -114,7 +117,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testShow() {
-        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->factory_creation_data);
 
         $response = $this->json('GET', route($this->route_prefix . '.show', array_merge($this->route_parameters, ['id' => $model_instance->id])));
 
@@ -136,7 +139,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testDelete() {
-        $model_instance = factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        $model_instance = factory($this->controller_instance->getModelClass())->create($this->factory_creation_data);
 
         $response = $this->json('DELETE', route($this->route_prefix . '.destroy', array_merge($this->route_parameters, ['id' => $model_instance->id])));
 
@@ -152,7 +155,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testPaginate() {
-        factory($this->controller_instance->getModelClass(), 10)->create($this->creation_data);
+        factory($this->controller_instance->getModelClass(), 10)->create($this->factory_creation_data);
 
         $page_size = 3;
 
@@ -169,7 +172,7 @@ class BaseControllerTest extends TestCase {
     }
 
     public function testFilter() {
-        factory($this->controller_instance->getModelClass())->create($this->creation_data);
+        factory($this->controller_instance->getModelClass())->create($this->factory_creation_data);
         factory($this->controller_instance->getModelClass())->create($this->filter_creation_data);
 
         $response = $this->json('GET', route($this->route_prefix . '.index', array_merge($this->route_parameters, [
